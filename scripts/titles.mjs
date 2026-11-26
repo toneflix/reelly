@@ -60,9 +60,15 @@ function stagesFor(sb, t) {
       return `<div class="stage end">${html}</div>`;
     });
   }
-  const words = String(t.text || '').split(/\s+/).filter(Boolean);
-  // *word* marks emphasis in openers.
-  const word = (w, hidden) => `<span class="w${hidden ? ' h' : ''}">${esc(w).replace(/\*(.+?)\*/g, '<b>$1</b>')}</span>`;
+  // *words* mark emphasis in openers, also across several words.
+  let bold = false;
+  const words = String(t.text || '').split(/\s+/).filter(Boolean).map(w => {
+    const open = bold || w.startsWith('*');
+    bold = open && !w.endsWith('*');
+    const text = esc(w.replace(/^\*|\*$/g, ''));
+    return open ? `<b>${text}</b>` : text;
+  });
+  const word = (w, hidden) => `<span class="w${hidden ? ' h' : ''}">${w}</span>`;
   const n = t.reveal === 'words' ? words.length : 1;
   return Array.from({ length: n }, (_, k) => {
     const vis = t.reveal === 'words' ? k + 1 : words.length;
