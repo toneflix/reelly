@@ -40,12 +40,17 @@ python3 -m pip install -r requirements.txt
 
 ## Install
 
+In Claude Code (terminal, desktop app or IDE):
+
 ```
-/plugin marketplace add toneflix/reelly
-/plugin install reelly
+/plugin install reelly --marketplace toneflix/reelly
 ```
 
-Or clone this repository and point Claude Code at it with `claude --plugin-dir ./reelly`.
+On Claude Code older than 2.1.275, run `/plugin marketplace add toneflix/reelly` and then `/plugin install reelly@reelly`. To try a clone without installing: `claude --plugin-dir ./reelly`.
+
+For **Claude Code on the web**, add the marketplace `toneflix/reelly` at [claude.ai/customize/plugins](https://claude.ai/customize/plugins) and turn on reelly; cloud sessions pick it up from your account. A repository's `.claude/settings.json` marketplaces are not loaded in cloud sessions.
+
+[`docs/install.md`](docs/install.md) has team installs and cloud environment setup.
 
 ## How it works
 
@@ -77,7 +82,9 @@ A full 60 s capture takes about 3 minutes and composing about 1 to 2 minutes on 
 ## Layout
 
 ```
-.claude-plugin/plugin.json
+.claude-plugin/plugin.json     plugin manifest
+.claude-plugin/marketplace.json  makes this repository its own marketplace
+docs/install.md                install for Claude Code, teams and cloud sessions
 commands/reel.md               /reel <url|path|demo> [notes]
 skills/product-reel/SKILL.md   the procedure, schema, pacing and copy rules, review checklist
 scripts/capture.mjs            study crawl + deterministic frame capture

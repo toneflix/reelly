@@ -1,7 +1,14 @@
 {
   "name": "reelly",
-  "owner": { "name": "toneflix" },
+  "description": "reelly: turn any product that runs in a browser into a cinematic product reel.",
+  "owner": { "name": "toneflix", "url": "https://github.com/toneflix" },
   "plugins": [
-    { "name": "reelly", "source": "./", "description": "Turn any product that runs in a browser into a cinematic product reel (MP4 with an original score)." }
+    {
+      "name": "reelly",
+      "source": "./",
+      "description": "Turn any product that runs in a browser into a cinematic product reel (MP4 with an original score).",
+      "category": "productivity",
+      "homepage": "https://github.com/toneflix/reelly"
+    }
   ]
 }
