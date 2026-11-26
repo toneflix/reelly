@@ -1,6 +1,6 @@
 # reelly
 
-A Claude Code plugin that turns any product that runs in a browser into a cinematic product reel: a 1080p30 MP4 with an original score, a poster frame and the editable storyboard that made it.
+A Claude Code plugin (and MCP server) that turns any product that runs in a browser into a cinematic product reel: a 1080p30 MP4 with an original score, a poster frame and the editable storyboard that made it.
 
 ```
 /reel http://localhost:5173 "60s, suspenseful, show the editor and sharing"
@@ -8,7 +8,7 @@ A Claude Code plugin that turns any product that runs in a browser into a cinema
 /reel demo
 ```
 
-It uses only the Claude Code session it runs in. There is no API key, no account and no cloud service: Claude does the judgment (studying the product, writing the storyboard and copy, reviewing the result) and local scripts do the machinery (capture, titles, score, compose).
+It uses only the Claude Code session it runs in (or the AI host that drives its MCP server). There is no API key, no account and no cloud service: Claude does the judgment (studying the product, writing the storyboard and copy, reviewing the result) and local scripts do the machinery (capture, titles, score, compose).
 
 Output lands in `reels/<name>/`:
 
@@ -84,6 +84,7 @@ A full 60 s capture takes about 3 minutes and composing about 1 to 2 minutes on 
 ```
 .claude-plugin/plugin.json     plugin manifest
 .claude-plugin/marketplace.json  makes this repository its own marketplace
+mcp/server.mjs                 MCP server (stdio, or HTTP for ChatGPT) over the same scripts
 docs/install.md                install for Claude Code, teams and cloud sessions
 commands/reel.md               /reel <url|path|demo> [notes]
 skills/product-reel/SKILL.md   the procedure, schema, pacing and copy rules, review checklist
