@@ -44,7 +44,9 @@ async function serve(target) {
   const server = http.createServer((req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p.endsWith('/')) p += index;
-    const file = path.join(root, path.normalize(p));
+    let file = path.join(root, path.normalize(p));
+    // Client-side routes (no file extension) fall back to the app's index, as SPA hosts do.
+    if (!fs.existsSync(file) && !path.extname(file)) file = fs.existsSync(file + '.html') ? file + '.html' : path.join(root, index);
     if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
