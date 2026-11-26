@@ -8,6 +8,8 @@ A Claude Code plugin (and MCP server) that turns any product that runs in a brow
 /reel demo
 ```
 
+Mobile apps built with Expo or React Native are filmed through their web build (`npx expo export -p web` or `npx expo start --web`) at phone size, inside a generic device frame. Native-only features such as the camera, maps or push notifications do not run in a web build, so they cannot appear in the reel.
+
 It uses only the Claude Code session it runs in (or the AI host that drives its MCP server). There is no API key, no account and no cloud service: Claude does the judgment (studying the product, writing the storyboard and copy, reviewing the result) and local scripts do the machinery (capture, titles, score, compose).
 
 Output lands in `reels/<name>/`:
@@ -71,10 +73,10 @@ The JSON form works for Claude Desktop, Cursor and most other hosts. Working ins
 ## How it works
 
 1. **Study.** `capture.mjs study` crawls the product in headless Chromium, takes screenshots and records headings, buttons, inputs and text. Claude reads them, plus the README and docs, and writes `storyboard.json`.
-2. **Capture.** `capture.mjs` films each shot frame by frame at 1920x1080 with deviceScaleFactor 1.5, so the camera can zoom to 1.6x later without blur. Time is deterministic: `page.clock.install()` before load, `page.clock.pauseAt()` after load, then exactly `runFor(1000/30)` per frame. CSS animations, transitions and videos are paused and stepped from the same clock. The pointer moves along eased, slightly curved paths like a hand, drawn as a cursor with a click ripple.
+2. **Capture.** `capture.mjs` films each shot frame by frame at 1920x1080 with deviceScaleFactor 1.5, so the camera can zoom to 1.6x later without blur. With `"device": "phone"` or `"tablet"` it films a touch viewport at 3x (tablet 2x) instead, and taps show as a fingertip dot. Time is deterministic: `page.clock.install()` before load, `page.clock.pauseAt()` after load, then exactly `runFor(1000/30)` per frame. CSS animations, transitions and videos are paused and stepped from the same clock. The pointer moves along eased, slightly curved paths like a hand, drawn as a cursor with a click ripple.
 3. **Titles.** `titles.mjs` renders titles from HTML to transparent PNGs, so real web fonts work.
 4. **Score.** `music.py` synthesises an original trailer score on the same beat grid: a drone with a moving low-pass, a 16th-note ostinato of band-limited saw stabs whose filter opens section by section, taiko drums, impacts (boom, crack, sub tail), braams, risers, whooshes, ticks, an accelerating snare roll, a dead-silent half bar before the last hit, convolution reverb per bus and a soft-clipped master at -1 dBFS. Every cut, click, drag, slide change, camera move and title reveal gets a sound. Or bring a track: `music.py analyze song.mp3 reels/<name>` detects its tempo and downbeat and snaps the storyboard to them.
-5. **Compose.** `compose.py` crops for camera moves, cuts on the beat (hard cuts in action, dissolves only in calm sections, white flashes on big hits), overlays titles, adds a light vignette and pipes raw frames to ffmpeg.
+5. **Compose.** `compose.py` crops for camera moves (or, for a phone or tablet, places the screen in a generic device frame and moves the camera over the whole stage), cuts on the beat (hard cuts in action, dissolves only in calm sections, white flashes on big hits), overlays titles, adds a light vignette and pipes raw frames to ffmpeg.
 6. **Review.** `review.py` makes contact sheets of the whole reel and of every shot, and checks for blank frames, layout jumps, near-empty frames, text cut off by the camera and text too small to read. Claude looks at them, fixes the storyboard, re-captures only the affected shots and composes again.
 
 The scripts are generic: nothing in them knows about any one product, and none of them calls an AI API. See [`skills/product-reel/SKILL.md`](skills/product-reel/SKILL.md) for the full storyboard schema, pacing and copy rules and the review checklist.
@@ -109,6 +111,7 @@ scripts/capture.mjs            study crawl + deterministic frame capture
 scripts/titles.mjs             HTML titles -> transparent PNG
 scripts/music.py               score synthesis, user-track beat detection
 scripts/compose.py             camera, cuts, titles, vignette -> ffmpeg
+scripts/device.py              phone and tablet frame, status bar and stage camera
 scripts/review.py              contact sheets and automatic checks
 scripts/lib/storyboard.mjs     storyboard loading and beat-grid layout
 scripts/lib/browser.mjs        Chromium launch with a fallback to a preinstalled browser
