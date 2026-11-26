@@ -1,0 +1,13 @@
+node_modules/
+__pycache__/
+reels/
+examples/*/frames/
+examples/*/titles/
+examples/*/review/
+examples/*/study/
+examples/*/manifest.json
+examples/*/score.wav
+examples/*/score.json
+examples/*/*.mp4
+examples/*/poster*.jpg
+!examples/lumen/storyboard.json
