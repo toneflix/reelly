@@ -4,6 +4,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const MAX_ZOOM = 1.6;
+// A device screen fills less of the frame and is captured denser, so the camera can go closer.
+export const DEVICE_MAX_ZOOM = 2.4;
+export const maxZoom = sb => (sb.device ? DEVICE_MAX_ZOOM : MAX_ZOOM);
+
+// Mobile viewports for apps built for phones and tablets (Expo web, PWAs, responsive sites).
+export const DEVICES = {
+  phone: { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
+  tablet: { width: 820, height: 1180, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+};
+
+/** Normalise `device` ("phone" | "tablet" | { type, ... }) into an object, or null for desktop. */
+export function deviceOf(sb) {
+  if (!sb.device) return null;
+  const d = typeof sb.device === 'string' ? { type: sb.device } : { ...sb.device };
+  d.type ??= 'phone';
+  if (!DEVICES[d.type]) throw new Error(`device "${d.type}" must be one of ${Object.keys(DEVICES).join(', ')}`);
+  return { frame: true, color: '#1b1c21', align: 'center', statusBar: true, ...d };
+}
 
 export function loadStoryboard(reelDir) {
   const file = path.join(reelDir, 'storyboard.json');
@@ -16,7 +34,9 @@ export function normalise(sb) {
   sb.fps ??= 30;
   sb.bpm ??= 120;
   sb.beatsPerBar ??= 4;
-  sb.viewport = { width: 1920, height: 1080, deviceScaleFactor: 1.5, ...(sb.viewport || {}) };
+  sb.device = deviceOf(sb);
+  const base = sb.device ? DEVICES[sb.device.type] : { width: 1920, height: 1080, deviceScaleFactor: 1.5 };
+  sb.viewport = { ...base, ...(sb.viewport || {}) };
   sb.hide ??= [];
   sb.sections ??= [];
   sb.timeline ??= [];

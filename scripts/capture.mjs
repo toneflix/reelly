@@ -2,7 +2,7 @@
 // reelly capture: drives a product in headless Chromium frame by frame.
 //
 //   node capture.mjs <reelDir> [--only id,id] [--quality 92]
-//   node capture.mjs study <url|path> <outDir> [--max 12]
+//   node capture.mjs study <url|path> <outDir> [--max 12] [--device phone|tablet]
 //
 // Time is deterministic: the page clock is installed before load, paused after
 // load and only ever advanced by exactly one frame. CSS animations, transitions
@@ -12,7 +12,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { loadStoryboard, layout, framesPerBeat, beatToFrame, MAX_ZOOM } from './lib/storyboard.mjs';
+import { loadStoryboard, layout, framesPerBeat, beatToFrame, maxZoom, DEVICES } from './lib/storyboard.mjs';
 
 import { launchChromium } from './lib/browser.mjs';
 
@@ -44,7 +44,9 @@ async function serve(target) {
   const server = http.createServer((req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p.endsWith('/')) p += index;
-    const file = path.join(root, path.normalize(p));
+    let file = path.join(root, path.normalize(p));
+    // Client-side routes (no file extension) fall back to the app's index, as SPA hosts do.
+    if (!fs.existsSync(file) && !path.extname(file)) file = fs.existsSync(file + '.html') ? file + '.html' : path.join(root, index);
     if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
@@ -64,7 +66,7 @@ function resolveTarget(sb, reelDir) {
 
 const joinUrl = (base, p) => (!p ? base + '/' : /^https?:/.test(p) ? p : base + (p.startsWith('/') ? p : '/' + p));
 
-function initScript({ hide }) {
+function initScript({ hide, touch }) {
   const css = `${hide.length ? hide.join(',') + '{display:none!important}' : ''}
     ::-webkit-scrollbar{display:none!important}
     #__reelly_cursor{position:fixed;left:0;top:0;width:34px;height:34px;z-index:2147483647;pointer-events:none;display:none;
@@ -73,8 +75,14 @@ function initScript({ hide }) {
     #__reelly_cursor.down svg{transform:scale(.86)}
     .__reelly_ripple{position:fixed;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;z-index:2147483646;pointer-events:none;
       border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 2px rgba(0,0,0,.15);animation:__reelly_rip .5s ease-out forwards}
-    @keyframes __reelly_rip{from{transform:scale(.3);opacity:1}to{transform:scale(1.25);opacity:0}}`;
-  const arrow = `<svg viewBox="0 0 24 24"><path d="M4 2.5 L4 19.5 L8.6 15.4 L11.6 22 L14.6 20.7 L11.7 14.2 L18 14.2 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    @keyframes __reelly_rip{from{transform:scale(.3);opacity:1}to{transform:scale(1.25);opacity:0}}
+    ${touch ? `#__reelly_cursor{width:44px;height:44px;margin:-22px 0 0 -22px;filter:none}
+    #__reelly_cursor i{display:block;width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,.55);
+      border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 10px rgba(0,0,0,.35);box-sizing:border-box;
+      opacity:0;transform:scale(1.3);transition:opacity .35s ease-out,transform .2s ease-out}
+    #__reelly_cursor.down i{opacity:1;transform:scale(1);transition:opacity .06s,transform .12s ease-out}` : ''}`;
+  // Touch devices show a fingertip dot only while pressed; desktops show an arrow.
+  const arrow = touch ? '<i></i>' : `<svg viewBox="0 0 24 24"><path d="M4 2.5 L4 19.5 L8.6 15.4 L11.6 22 L14.6 20.7 L11.7 14.2 L18 14.2 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
   return `(() => {
     const css = ${JSON.stringify(css)};
     const arrow = ${JSON.stringify(arrow)};
@@ -88,7 +96,8 @@ function initScript({ hide }) {
       cursor.style.display = shown ? 'block' : 'none';
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
-    addEventListener('mousemove', e => { if (cursor) cursor.style.transform = 'translate(' + (e.clientX - 4) + 'px,' + (e.clientY - 3) + 'px)'; }, true);
+    const dx = ${touch ? 0 : 4}, dy = ${touch ? 0 : 3};
+    addEventListener('mousemove', e => { if (cursor) cursor.style.transform = 'translate(' + (e.clientX - dx) + 'px,' + (e.clientY - dy) + 'px)'; }, true);
     addEventListener('mousedown', e => {
       if (!cursor || !shown) return;
       cursor.classList.add('down');
@@ -234,16 +243,27 @@ async function advance(page, ms) {
   }
 }
 
+function mobileOptions(vp, browser, userAgent) {
+  if (!vp.isMobile && !vp.hasTouch) return userAgent ? { userAgent } : {};
+  const major = browser.version().split('.')[0];
+  return {
+    isMobile: !!vp.isMobile,
+    hasTouch: !!vp.hasTouch,
+    userAgent: userAgent || `Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Mobile Safari/537.36`,
+  };
+}
+
 async function openPage(browser, sb, base, item, setupMod, reelDir) {
   const context = await browser.newContext({
     viewport: { width: sb.viewport.width, height: sb.viewport.height },
     deviceScaleFactor: sb.viewport.deviceScaleFactor,
+    ...mobileOptions(sb.viewport, browser, sb.userAgent),
     colorScheme: sb.colorScheme || 'dark',
     reducedMotion: 'no-preference',
     locale: sb.locale || 'en-US',
     timezoneId: sb.timezone || 'UTC',
   });
-  await context.addInitScript(initScript({ hide: sb.hide }));
+  await context.addInitScript(initScript({ hide: sb.hide, touch: !!sb.viewport.hasTouch }));
   const page = await context.newPage();
   page.on('pageerror', e => { console.warn(`  [page error] ${e.message}`); pageErrors.push(`${item.id}: ${e.message}`); });
   await page.clock.install({ time: T0 });
@@ -335,7 +355,7 @@ async function captureShot(browser, sb, base, item, entry, outDir, setupMod, qua
           const n = [...a.text].length;
           // Spread keys over the span with a little human jitter, never two on one frame.
           st.keys = [...a.text].map((ch, k) => ({ ch, frame: a.s + Math.round(((k + 0.15 + (rnd() - 0.5) * 0.5) / n) * a.span) }));
-          for (let k = 1; k < st.keys.length; k++) st.keys[k].frame = Math.max(st.keys[k].frame, st.keys[k - 1].frame + 1);
+          st.keys.forEach((key, k) => { key.frame = Math.max(key.frame, k ? st.keys[k - 1].frame + 1 : a.s); });
           events.push({ frame: f, kind: 'type-start', chars: n, frames: a.span });
         }
         for (const k of st.keys) if (k.frame === f) { await page.keyboard.type(k.ch); events.push({ frame: f, kind: 'key' }); }
@@ -366,7 +386,7 @@ async function captureShot(browser, sb, base, item, entry, outDir, setupMod, qua
       else center = await point(page, center, k.offset).catch(e => { console.warn(`  camera: ${e.message}`); return lastCenter; });
       if (center !== 'cursor') lastCenter = center;
       let zoom = k.zoom ?? 1;
-      if (zoom > MAX_ZOOM) { console.warn(`  camera zoom ${zoom} in "${item.id}" clamped to ${MAX_ZOOM}`); zoom = MAX_ZOOM; }
+      if (zoom > maxZoom(sb)) { console.warn(`  camera zoom ${zoom} in "${item.id}" clamped to ${maxZoom(sb)}`); zoom = maxZoom(sb); }
       camOut.push({ frame: k.frame, zoom: Math.max(1, zoom), center, ease: k.ease || 'inOut' });
     }
 
@@ -392,7 +412,7 @@ async function captureMontage(browser, sb, base, item, entry, outDir, setupMod, 
   let open = null;
   for (let k = 0; k < n; k++) {
     const s = defs[k % Math.max(1, defs.length)] || {};
-    if (s.from) { slides.push({ k, from: s.from, at: s.at ?? 0, zoom: Math.min(MAX_ZOOM, s.zoom ?? 1), center: s.center ?? null, push: s.push ?? 0.04 }); continue; }
+    if (s.from) { slides.push({ k, from: s.from, at: s.at ?? 0, zoom: Math.min(maxZoom(sb), s.zoom ?? 1), center: s.center ?? null, push: s.push ?? 0.04 }); continue; }
     const key = JSON.stringify([s.path, s.prepare]);
     if (!open || open.key !== key || s.fresh) {
       if (open) await open.context.close();
@@ -412,7 +432,7 @@ async function captureMontage(browser, sb, base, item, entry, outDir, setupMod, 
     let center = null;
     if (s.center) center = await point(page, s.center, s.offset).catch(() => null);
     let zoom = s.zoom ?? 1;
-    if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
+    if (zoom > maxZoom(sb)) zoom = maxZoom(sb);
     const text = await page.evaluate(() => window.__reelly.textBoxes(500));
     slides.push({ k, file: path.relative(outDir, file), zoom, center, push: s.push ?? 0.04, text });
     process.stdout.write(`\r  ${item.id}: slide ${k + 1}/${n}   `);
@@ -422,11 +442,13 @@ async function captureMontage(browser, sb, base, item, entry, outDir, setupMod, 
   return { dir: path.relative(outDir, dir), slides };
 }
 
-async function study(target, outDir, max) {
+async function study(target, outDir, max, device) {
   fs.mkdirSync(outDir, { recursive: true });
   const srv = await serve(/^https?:/.test(target) ? target : path.resolve(target));
   const browser = await launchChromium(chromium, { args: ['--disable-smooth-scrolling', '--hide-scrollbars'] });
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+  const vp = device ? DEVICES[device] : { width: 1920, height: 1080 };
+  if (!vp) throw new Error(`--device must be one of ${Object.keys(DEVICES).join(', ')}`);
+  const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1, colorScheme: 'dark', ...mobileOptions(vp, browser) });
   const page = await context.newPage();
   const seen = new Set();
   const queue = [srv.base + '/'];
@@ -445,11 +467,11 @@ async function study(target, outDir, max) {
       await page.screenshot({ path: shot });
       const info = await page.evaluate(() => {
         const vis = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
-        const sel = el => el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.classList.length ? '.' + [...el.classList].join('.') : '');
+        const sel = el => el.id ? '#' + el.id : el.dataset.testid ? `[data-testid="${el.dataset.testid}"]` : el.tagName.toLowerCase() + (el.classList.length ? '.' + [...el.classList].join('.') : '');
         return {
           title: document.title,
           headings: [...document.querySelectorAll('h1,h2,h3')].filter(vis).map(h => h.textContent.trim()).slice(0, 30),
-          buttons: [...document.querySelectorAll('button,[role=button],a.btn,input[type=submit]')].filter(vis).map(b => ({ text: b.textContent.trim().slice(0, 60), selector: sel(b) })).slice(0, 40),
+          buttons: [...document.querySelectorAll('button,[role=button],a.btn,input[type=submit],[data-testid][tabindex="0"]')].filter(vis).map(b => ({ text: b.textContent.trim().slice(0, 60), selector: sel(b) })).slice(0, 40),
           inputs: [...document.querySelectorAll('input,textarea,[contenteditable=true]')].filter(vis).map(b => ({ selector: sel(b), placeholder: b.placeholder || '' })).slice(0, 20),
           links: [...document.querySelectorAll('a[href]')].map(a => a.href),
           text: document.body.innerText.replace(/\n{3,}/g, '\n\n').slice(0, 4000),
@@ -465,7 +487,7 @@ async function study(target, outDir, max) {
   // README/docs next to a local product are part of the study.
   const docs = [];
   if (srv.root) for (const f of fs.readdirSync(srv.root)) if (/^(readme|docs?|changelog).*\.(md|txt)$/i.test(f)) docs.push({ file: f, text: fs.readFileSync(path.join(srv.root, f), 'utf8').slice(0, 8000) });
-  fs.writeFileSync(path.join(outDir, 'study.json'), JSON.stringify({ base: srv.base, target, pages, docs }, null, 2));
+  fs.writeFileSync(path.join(outDir, 'study.json'), JSON.stringify({ base: srv.base, target, device: device || null, viewport: vp, pages, docs }, null, 2));
   await browser.close();
   srv.close();
   console.log(`Wrote ${pages.length} pages to ${path.join(outDir, 'study.json')}`);
@@ -474,8 +496,9 @@ async function study(target, outDir, max) {
 async function main() {
   if (argv[0] === 'study') {
     const max = +flag('max', 12);
-    if (argv.length < 3) throw new Error('usage: capture.mjs study <url|path> <outDir> [--max 12]');
-    return study(argv[1], argv[2], max);
+    const device = flag('device', null);
+    if (argv.length < 3) throw new Error('usage: capture.mjs study <url|path> <outDir> [--max 12] [--device phone|tablet]');
+    return study(argv[1], argv[2], max, device);
   }
   const only = flag('only', null)?.split(',');
   const quality = +flag('quality', 92);
@@ -526,7 +549,7 @@ async function main() {
   }
   const manifest = {
     version: 1, fps: sb.fps, bpm: sb.bpm, beatsPerBar: sb.beatsPerBar, fpb: lay.fpb,
-    width: sb.viewport.width, height: sb.viewport.height, dsf: sb.viewport.deviceScaleFactor,
+    width: sb.viewport.width, height: sb.viewport.height, dsf: sb.viewport.deviceScaleFactor, device: sb.device,
     totalFrames: lay.totalFrames, seconds: lay.seconds, sections: lay.sections, cues: lay.cues, items, warnings: lay.warnings, pageErrors,
     capturedAt: new Date().toISOString(),
   };

@@ -30,6 +30,8 @@ This crawls same-origin links, saves a screenshot per page and `study.json` (hea
 
 If a moment needs sign-in, seeded data or a feature flag, write `reels/<name>/setup.js` (see "setup.js" below) instead of hacks in actions.
 
+If the product is a mobile app (Expo or React Native), follow "Mobile apps and Expo" below before you study it, and study with `--device phone`.
+
 ## 2. Write `reels/<name>/storyboard.json`
 
 ### Schema
@@ -41,6 +43,7 @@ If a moment needs sign-in, seeded data or a feature flag, write `reels/<name>/se
   "product": { "name": "Lumen", "tagline": "Notes that think with you.", "url": "lumen.app" },
   "fps": 30, "bpm": 120, "beatsPerBar": 4,  // 120 BPM: a beat is 15 frames, a bar 60 frames (2 s)
   "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1.5 },
+  "device": "phone",                        // optional: "phone" | "tablet" | { "type": "phone", "align": "center", "color": "#1b1c21", "frame": true, "statusBar": true }
   "colorScheme": "dark",                    // or "light"
   "hide": ["#cookie-banner"],               // CSS selectors hidden in every capture
   "setup": "setup.js",                      // optional hook module, relative to the reel folder
@@ -116,7 +119,7 @@ Item ids must be unique (letters, digits, `-`, `_`, `.`). Shots are the only ite
 - Dissolves only where energy is below 0.6; compose turns any other dissolve into a hard cut. Use `flash` cuts only on big hits (one to three per reel).
 - Natural interaction speed: a page turn, drag or scroll takes 1.5 to 2 s (3 to 4 beats at 120 BPM). Pointer travel before a click is about 1 beat. Typing runs at most about 8 characters per second. Leave a beat after a click for the UI to respond before cutting.
 - Put the moment that matters on a beat: clicks land on `at`, drags release on `at + beats`. Start actions after `at: 1` so the viewer can read the frame first.
-- Camera: at most 1.6x (capture is 1.5x, so this stays sharp). Push in to where the action is just before it happens; pull out to reveal the result. Use `"center": "cursor"` to follow drags. One or two moves per shot is plenty.
+- Camera: at most 1.6x (capture is 1.5x, so this stays sharp); 2.4x with a `device`. Push in to where the action is just before it happens; pull out to reveal the result. Use `"center": "cursor"` to follow drags. One or two moves per shot is plenty.
 - Montages: at least 16 slides that speed up (for example 4 x 1 s, 4 x 0.5 s, 8 x 0.25 s). Each slide is a different place or crop; vary zoom and centre. `from` slides reuse frames from shots.
 - Shots are 2 to 4 bars. Nothing on screen without something happening for more than about 4 s.
 
@@ -134,7 +137,7 @@ node $S/capture.mjs reels/<name>                    # all shots and montages
 node $S/capture.mjs reels/<name> --only editor,rush # re-capture just these
 ```
 
-It drives Chromium frame by frame at 1920x1080, deviceScaleFactor 1.5, writing `frames/<id>/NNNNN.jpg` and `manifest.json` (layout, interaction frames, cursor track, resolved camera keyframes, text boxes for the review). Time is deterministic: the page clock is installed before load, paused after load and advanced exactly one frame per screenshot; CSS animations, transitions and videos are paused and stepped from the same clock. The pointer is drawn as a cursor with a click ripple. Expect about 6 to 8 captured frames per second.
+It drives Chromium frame by frame at the storyboard viewport (1920x1080 at deviceScaleFactor 1.5 by default), writing `frames/<id>/NNNNN.jpg` and `manifest.json` (layout, interaction frames, cursor track, resolved camera keyframes, text boxes for the review). Time is deterministic: the page clock is installed before load, paused after load and advanced exactly one frame per screenshot; CSS animations, transitions and videos are paused and stepped from the same clock. The pointer is drawn as a cursor with a click ripple. Expect about 6 to 8 captured frames per second.
 
 If a selector is missing or the product throws errors, fix the storyboard (or `setup.js`) and capture again. Errors the page throws are recorded and reported by the review.
 
@@ -177,6 +180,19 @@ Read `review/report.md`, then look at `review/overview.jpg` and every `review/<i
 Fix in the storyboard, re-capture only the shots you changed with `--only`, then re-run titles (if copy changed), music and compose, and review again. Two or three rounds is normal.
 
 When done, report to the user: the path of `reel.mp4`, `poster.jpg` and `storyboard.json`; what the review caught and you fixed; and what you could not check. You cannot hear the audio, so say that the score was checked only through `score.json` timings and levels.
+
+## Mobile apps and Expo
+
+A mobile app is filmed through its web build, inside a phone frame. Signs that the product is one: `expo` or `react-native` in `package.json`, or an `app.json` with an `"expo"` key.
+
+1. Make sure it builds for web. Expo needs `react-dom`, `react-native-web` and `@expo/metro-runtime`; if they are missing, ask the user before running `npx expo install react-dom react-native-web @expo/metro-runtime` in their project.
+2. Get a URL. Prefer a static export, which is deterministic and needs no server: `npx expo export -p web` writes `dist/`, and `url` can point at that folder (client-side routes fall back to `index.html`; Expo Router's static pages are served as `<route>.html`). Otherwise run `npx expo start --web` in the background and use its URL (usually `http://localhost:8081`).
+3. Study at phone size: `node $S/capture.mjs study <url-or-dist> reels/<name>/study --max 12 --device phone`.
+4. In the storyboard set `"device": "phone"` (or `"tablet"`). The viewport becomes 390x844 (tablet 820x1180) with touch and a mobile user agent, captured at 3x (tablet 2x). Compose places the screen in a generic device frame with a status bar on the theme background; the camera moves the whole stage, so zoom 1 shows the full phone and 2 to 2.4 fills the frame with part of the screen. `"align": "left"` or `"right"` moves the phone off centre to leave room for titles.
+5. Clicks are taps: a fingertip dot appears only while pressed, so there is no pointer to watch travel. Leave about a beat between taps. Scroll the app's own scroll view with `"in"` (for example `"in": "#feed"`), since React Native screens rarely scroll the page.
+6. React Native Web turns `testID` into `data-testid` and `nativeID` into `id`, so target `[data-testid="add"]` or `#new-habit`. The study lists them.
+
+The web build cannot show native-only features: camera, maps, push notifications, haptics, biometrics, in-app purchases and other native modules render nothing, a fallback, or throw. Check the study screenshots and the review's page errors, leave those moments out, and tell the user which features the reel could not show. Filming the native app in an iOS Simulator or Android emulator is not supported.
 
 ## setup.js
 

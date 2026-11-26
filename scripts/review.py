@@ -24,6 +24,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import device as dev
+
 TW, TH = 384, 216
 MIN_TEXT_PX = 15       # smallest comfortable text at 1080p, in output pixels
 CUT_TEXT_PX = 18       # only report clipped text this big or bigger (body text and up)
@@ -176,6 +178,7 @@ def main(argv):
 
     # Text checks from the DOM boxes capture recorded.
     W, H = man["width"], man["height"]
+    geom = dev.geometry(man["device"], W, H, 1920, 1080) if man.get("device") else None
     for it in items:
         cap = it.get("capture") or {}
         probes = []
@@ -188,10 +191,14 @@ def main(argv):
                 if "text" in s:
                     probes.append((f"slide {s['k']}", s["text"], s.get("zoom", 1), s.get("center") or [W / 2, H / 2]))
         for where, boxes, z, c in probes:
-            cw, ch = W / z, H / z
-            x0 = min(max(c[0] - cw / 2, 0), W - cw)
-            y0 = min(max(c[1] - ch / 2, 0), H - ch)
-            x1, y1 = x0 + cw, y0 + ch
+            if geom:
+                x0, y0, x1, y1 = dev.visible_css(geom, z, c)
+                z = min(z, dev.MAX_ZOOM) * geom["k"]  # output px per CSS px
+            else:
+                cw, ch = W / z, H / z
+                x0 = min(max(c[0] - cw / 2, 0), W - cw)
+                y0 = min(max(c[1] - ch / 2, 0), H - ch)
+                x1, y1 = x0 + cw, y0 + ch
             inside, cut = [], []
             for bx, by, bw, bh, fs, *txt in boxes:
                 if bx >= x1 or by >= y1 or bx + bw <= x0 or by + bh <= y0:

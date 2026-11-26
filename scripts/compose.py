@@ -6,7 +6,8 @@
 Camera moves are crops of the 1.5x captures, so zooms up to 1.6x stay sharp.
 Cuts sit on the beat grid: hard cuts in action sections, dissolves only in calm
 ones (energy < 0.6) and short white flashes on big hits. Titles are the PNGs
-from titles.mjs. Frames are piped raw into ffmpeg (libx264 CRF 17, yuv420p,
+from titles.mjs. With a phone or tablet storyboard, the screen sits in a device
+frame on the theme background and the camera moves the whole stage. Frames are piped raw into ffmpeg (libx264 CRF 17, yuv420p,
 faststart, AAC 256k).
 """
 from __future__ import annotations
@@ -22,6 +23,8 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+import device as dev
 
 OUT_W, OUT_H = 1920, 1080
 MAX_ZOOM = 1.6
@@ -71,6 +74,20 @@ def load(reel: Path, preview: bool):
     rng = np.random.default_rng(3)
     card = card + rng.normal(0, 1.2, card.shape)  # dither against banding
     card = np.clip(card, 0, 255).astype(np.float32)
+
+    d = man.get("device")
+    if d:
+        g = dev.geometry(d, man["width"], man["height"], w, h)
+        bx, by, bw, bh = g["body"]
+        yy, xx = np.mgrid[0:gh, 0:gw].astype(np.float32)
+        ox, oy = (gw - w) / 2, (gh - h) / 2
+        halo = np.exp(-(((xx - ox - bx - bw / 2) / (bw * 1.6)) ** 2 + ((yy - oy - by - bh * 0.55) / (bh * 0.75)) ** 2))
+        stage = card + (acc - bg)[None, None, :] * (0.14 * halo)[..., None]
+        G.update(device=d, geom=g, geom_key=tuple(sorted(g.items())), stage_bg=Image.fromarray(np.clip(stage, 0, 255).astype(np.uint8)),
+                 stage_off=(ox, oy))
+        dev.layer(G["geom_key"], d.get("color", "#1b1c21"))
+    else:
+        G["device"] = None
 
     secs = {s["id"]: s for s in man["sections"]}
     items = man["items"]
@@ -142,6 +159,13 @@ def rgba(path: str, w: int, h: int) -> np.ndarray:
     return np.asarray(im, dtype=np.float32) / 255.0
 
 
+def view(im: Image.Image, zoom: float, center) -> np.ndarray:
+    if G["device"]:
+        out = dev.render(G["geom"], G["geom_key"], G["device"].get("color", "#1b1c21"), G["stage_bg"], G["stage_off"], im, zoom, center)
+        return np.asarray(out, dtype=np.float32)
+    return crop(im, zoom, center, G["css_w"], G["css_h"], G["dsf"])
+
+
 def crop(im: Image.Image, zoom: float, center, css_w: float, css_h: float, dsf: float) -> np.ndarray:
     zoom = max(1.0, min(MAX_ZOOM, zoom))
     cw, ch = css_w / zoom, css_h / zoom
@@ -180,7 +204,7 @@ def shot_frame(it, f):
     f = max(0, min(f, cap["count"] - 1))
     path = G["reel"] / cap["dir"] / f"{f:05d}.jpg"
     zoom, center = camera(it, f)
-    return crop(img(str(path)), zoom, center, G["css_w"], G["css_h"], G["dsf"])
+    return view(img(str(path)), zoom, center)
 
 
 def montage_frame(it, f):
@@ -205,8 +229,8 @@ def montage_frame(it, f):
     center = c.get("center") or [G["css_w"] / 2, G["css_h"] / 2]
     z0 = c.get("zoom", 1.0)
     push = c.get("push", 0.04)
-    zoom = min(MAX_ZOOM, z0 * (1 + push * ease(u, "out")))
-    return crop(im, zoom, center, G["css_w"], G["css_h"], G["dsf"])
+    zoom = min(dev.MAX_ZOOM if G["device"] else MAX_ZOOM, z0 * (1 + push * ease(u, "out")))
+    return view(im, zoom, center)
 
 
 def title_card(it, f):
