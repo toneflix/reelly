@@ -40,9 +40,9 @@ if command -v node >/dev/null 2>&1; then
     ok "Playwright ${pw#found }"
     if (cd "$DIR" && node -e "
       const r = require('node:module').createRequire(process.cwd() + '/capture.mjs');
-      r('playwright').chromium.launch().then(b => b.close()).then(() => process.exit(0), () => process.exit(1));" >/dev/null 2>&1); then
+      import('./lib/browser.mjs').then(m => m.launchChromium(r('playwright').chromium)).then(b => b.close()).then(() => process.exit(0), () => process.exit(1));" >/dev/null 2>&1); then
       ok "Playwright Chromium launches"
-    else bad "Playwright Chromium" "cd \"$DIR\" && npx playwright install chromium"; fi
+    else bad "Playwright Chromium" "cd \"$DIR\" && npx playwright install chromium   (or set REELLY_CHROMIUM to a Chrome/Chromium binary)"; fi
   else bad "Playwright" "cd \"$DIR\" && npm install && npx playwright install chromium"; fi
 fi
 

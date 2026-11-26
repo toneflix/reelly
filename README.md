@@ -86,6 +86,7 @@ scripts/music.py               score synthesis, user-track beat detection
 scripts/compose.py             camera, cuts, titles, vignette -> ffmpeg
 scripts/review.py              contact sheets and automatic checks
 scripts/lib/storyboard.mjs     storyboard loading and beat-grid layout
+scripts/lib/browser.mjs        Chromium launch with a fallback to a preinstalled browser
 scripts/doctor                 requirement check
 scripts/requirements.txt, scripts/package.json
 examples/demo/                 Lumen, a small demo product
