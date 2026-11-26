@@ -11,6 +11,8 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { loadStoryboard } from './lib/storyboard.mjs';
 
+import { launchChromium } from './lib/browser.mjs';
+
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -91,7 +93,7 @@ async function main() {
   const weights = (sb.font?.weights || [300, 600, 800]).join(';');
   const fontLink = sb.font?.url || `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fam).replace(/%20/g, '+')}:wght@${weights}&display=block`;
 
-  const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
+  const browser = await launchChromium(chromium, { args: ['--font-render-hinting=none'] });
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
   const index = [];
   let fontOk = null;
