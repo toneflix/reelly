@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# reelly doctor: checks everything the scripts need. Exit code 0 means ready.
+#   scripts/doctor
+set -u
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PY="${REELLY_PYTHON:-python3}"
+fail=0
+ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
+bad()  { printf '  \033[31mmissing\033[0m %s\n        fix: %s\n' "$1" "$2"; fail=1; }
+
+echo "reelly doctor"
+
+if command -v node >/dev/null 2>&1; then
+  v=$(node -p 'process.versions.node')
+  if [ "${v%%.*}" -ge 22 ]; then ok "Node $v"; else bad "Node 22+ (found $v)" "install Node 22 LTS, e.g. 'nvm install 22'"; fi
+else bad "Node 22+" "install Node 22 LTS from https://nodejs.org"; fi
+
+if command -v "$PY" >/dev/null 2>&1; then
+  v=$("$PY" -c 'import sys;print("%d.%d"%sys.version_info[:2])')
+  if "$PY" -c 'import sys;sys.exit(0 if sys.version_info>=(3,11) else 1)'; then ok "Python $v"; else bad "Python 3.11+ (found $v)" "install Python 3.11 or newer"; fi
+  missing=$("$PY" - <<'P'
+import importlib.util
+print(" ".join(m for m in ("numpy", "scipy", "PIL") if importlib.util.find_spec(m) is None))
+P
+)
+  if [ -z "$missing" ]; then ok "numpy, scipy, Pillow"; else bad "Python packages: $missing" "$PY -m pip install -r \"$DIR/requirements.txt\""; fi
+else bad "Python 3.11+" "install Python 3.11 or newer"; fi
+
+if command -v ffmpeg >/dev/null 2>&1; then
+  enc=$(ffmpeg -hide_banner -encoders 2>/dev/null)
+  if echo "$enc" | grep -q libx264 && echo "$enc" | grep -qE ' aac '; then ok "ffmpeg with libx264 and aac"
+  else bad "ffmpeg with libx264 and aac" "install a full ffmpeg build (brew install ffmpeg / apt install ffmpeg)"; fi
+else bad "ffmpeg" "brew install ffmpeg  or  apt install ffmpeg"; fi
+
+if command -v node >/dev/null 2>&1; then
+  pw=$(cd "$DIR" && node -e "
+    const r = require('node:module').createRequire(process.cwd() + '/capture.mjs');
+    try { const p = r('playwright'); console.log('found ' + r('playwright/package.json').version); } catch (e) { console.log('none'); }" 2>/dev/null)
+  if [ "${pw%% *}" = found ]; then
+    ok "Playwright ${pw#found }"
+    if (cd "$DIR" && node -e "
+      const r = require('node:module').createRequire(process.cwd() + '/capture.mjs');
+      import('./lib/browser.mjs').then(m => m.launchChromium(r('playwright').chromium)).then(b => b.close()).then(() => process.exit(0), () => process.exit(1));" >/dev/null 2>&1); then
+      ok "Playwright Chromium launches"
+    else bad "Playwright Chromium" "cd \"$DIR\" && npx playwright install chromium   (or set REELLY_CHROMIUM to a Chrome/Chromium binary)"; fi
+  else bad "Playwright" "cd \"$DIR\" && npm install && npx playwright install chromium"; fi
+fi
+
+if [ $fail -eq 0 ]; then echo "ready."; else echo "fix the items above, then run scripts/doctor again."; fi
+exit $fail

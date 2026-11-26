@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumen — notes that think with you</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="cookie-banner" class="cookie">We use cookies to keep you signed in. <button>OK</button></div>
+
+<header class="topbar">
+  <a class="brand" href="#/"><span class="logo"></span>Lumen</a>
+  <nav>
+    <a href="#/editor" data-route="editor">Pages</a>
+    <a href="#/board" data-route="board">Board</a>
+    <a href="#/insights" data-route="insights">Insights</a>
+  </nav>
+  <button id="share-btn" class="btn ghost">Share</button>
+  <div class="avatar">OB</div>
+</header>
+
+<main>
+  <!-- Landing -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <div class="eyebrow">New · Lumen 2.0</div>
+      <h1>Notes that<br><span class="grad">think with you.</span></h1>
+      <p class="sub">Write, plan and ship from one calm page. Lumen links your ideas as you type, so nothing gets lost.</p>
+      <div class="cta">
+        <a class="btn primary" href="#/editor" id="start">Start writing</a>
+        <a class="btn ghost" href="#/board">See the board</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="float f1"><b>Launch plan</b><span>12 linked notes</span></div>
+      <div class="float f2"><b>Q3 roadmap</b><span>Edited 2m ago</span></div>
+      <div class="float f3"><b>Design review</b><span>4 comments</span></div>
+      <div class="orb"></div>
+    </div>
+  </section>
+
+  <!-- Editor -->
+  <section id="view-editor" class="view">
+    <aside class="sidebar">
+      <div class="side-h">Workspace</div>
+      <a class="page active">🚀 Launch plan</a>
+      <a class="page">🗺️ Q3 roadmap</a>
+      <a class="page">🎨 Design review</a>
+      <a class="page">📚 Reading list</a>
+      <a class="page">🧪 Experiments</a>
+      <button class="newpage" id="new-page">+ New page</button>
+    </aside>
+    <article class="doc">
+      <div class="doc-meta">Launch plan · edited just now</div>
+      <h2 class="doc-title" contenteditable="true" id="doc-title">Launch plan</h2>
+      <div class="doc-body" contenteditable="true" id="doc-body">
+        <p>Ship the new editor to everyone on <span class="chip">Monday</span>.</p>
+        <ul class="checks">
+          <li class="done">Polish onboarding</li>
+          <li class="done">Write release notes</li>
+          <li>Record the product reel</li>
+          <li>Tell the team</li>
+        </ul>
+        <p id="typing-line"></p>
+      </div>
+      <div class="suggest" id="suggest">
+        <div class="s-h">Linked ideas</div>
+        <div class="s-item">📎 Release checklist</div>
+        <div class="s-item">💬 Feedback from beta</div>
+        <div class="s-item">📈 Launch metrics</div>
+      </div>
+    </article>
+  </section>
+
+  <!-- Board -->
+  <section id="view-board" class="view">
+    <div class="board-h"><h2>Launch board</h2><span class="pill">8 tasks</span></div>
+    <div class="board">
+      <div class="col" id="col-todo"><div class="col-h">To do</div>
+        <div class="card" id="card-1"><span class="tag t1">Design</span>Hero illustration</div>
+        <div class="card" id="card-2"><span class="tag t2">Eng</span>Sync offline edits</div>
+        <div class="card" id="card-3"><span class="tag t3">Copy</span>Pricing page</div>
+      </div>
+      <div class="col" id="col-doing"><div class="col-h">In progress</div>
+        <div class="card" id="card-4"><span class="tag t2">Eng</span>Realtime cursors</div>
+        <div class="card" id="card-5"><span class="tag t1">Design</span>Dark mode</div>
+      </div>
+      <div class="col" id="col-done"><div class="col-h">Done</div>
+        <div class="card" id="card-6"><span class="tag t3">Copy</span>Release notes</div>
+        <div class="card" id="card-7"><span class="tag t2">Eng</span>Fast search</div>
+        <div class="card" id="card-8"><span class="tag t1">Design</span>New icons</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Insights -->
+  <section id="view-insights" class="view">
+    <div class="board-h"><h2>Insights</h2><span class="pill">Last 30 days</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Pages written</div><div class="v" data-count="1284">0</div></div>
+      <div class="stat"><div class="k">Ideas linked</div><div class="v" data-count="5310">0</div></div>
+      <div class="stat"><div class="k">Hours saved</div><div class="v" data-count="96">0</div></div>
+    </div>
+    <div class="chart" id="chart">
+      <div class="bar" style="--h:38%"></div><div class="bar" style="--h:52%"></div>
+      <div class="bar" style="--h:45%"></div><div class="bar" style="--h:61%"></div>
+      <div class="bar" style="--h:58%"></div><div class="bar" style="--h:72%"></div>
+      <div class="bar" style="--h:69%"></div><div class="bar" style="--h:84%"></div>
+      <div class="bar" style="--h:80%"></div><div class="bar" style="--h:93%"></div>
+    </div>
+  </section>
+</main>
+
+<!-- Share dialog -->
+<div class="modal-bg" id="share-modal">
+  <div class="modal">
+    <h3>Share “Launch plan”</h3>
+    <div class="invite"><input id="invite" placeholder="Add people by name or email"><button class="btn primary" id="invite-send">Invite</button></div>
+    <div class="people">
+      <div class="person"><div class="av a1">AK</div><div><b>Ada K.</b><span>Can edit</span></div></div>
+      <div class="person"><div class="av a2">JM</div><div><b>Jun M.</b><span>Can comment</span></div></div>
+    </div>
+    <label class="toggle"><input type="checkbox" id="public"><span class="sw"></span>Anyone with the link can view</label>
+    <div class="link" id="link">lumen.app/p/launch-plan</div>
+    <div class="toast" id="toast">Invite sent</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
