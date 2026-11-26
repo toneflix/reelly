@@ -14,6 +14,8 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { loadStoryboard, layout, framesPerBeat, beatToFrame, MAX_ZOOM } from './lib/storyboard.mjs';
 
+import { launchChromium } from './lib/browser.mjs';
+
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -429,7 +431,7 @@ async function captureMontage(browser, sb, base, item, entry, outDir, setupMod, 
 async function study(target, outDir, max) {
   fs.mkdirSync(outDir, { recursive: true });
   const srv = await serve(/^https?:/.test(target) ? target : path.resolve(target));
-  const browser = await chromium.launch({ args: ['--disable-smooth-scrolling', '--hide-scrollbars'] });
+  const browser = await launchChromium(chromium, { args: ['--disable-smooth-scrolling', '--hide-scrollbars'] });
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const page = await context.newPage();
   const seen = new Set();
@@ -501,7 +503,7 @@ async function main() {
   const oldById = new Map((old?.items || []).map(i => [i.id, i]));
 
   const srv = await serve(resolveTarget(sb, reelDir));
-  const browser = await chromium.launch({ args: ['--disable-smooth-scrolling', '--hide-scrollbars', '--font-render-hinting=none', '--force-color-profile=srgb'] });
+  const browser = await launchChromium(chromium, { args: ['--disable-smooth-scrolling', '--hide-scrollbars', '--font-render-hinting=none', '--force-color-profile=srgb'] });
   const t0 = Date.now();
   const items = [];
   try {

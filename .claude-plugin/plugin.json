@@ -1,6 +1,6 @@
 {
   "name": "reelly",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn any product that runs in a browser into a cinematic product reel (MP4 with an original score), using only the Claude Code session. No API keys, no accounts.",
   "author": { "name": "toneflix" },
   "homepage": "https://github.com/toneflix/reelly",
