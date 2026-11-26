@@ -216,15 +216,16 @@ const TOOLS = [
       target: { type: 'string', description: 'http(s) URL (e.g. a dev server) or a local folder / .html file on the server machine' },
       reel: reelArg,
       max: { type: 'number', description: 'Most pages to visit (default 12)' },
+      device: { type: 'string', enum: ['phone', 'tablet'], description: 'Study at a phone or tablet viewport with touch, for mobile apps such as an Expo web build' },
       images: { type: 'boolean', description: 'Return the screenshots as images (default true)' },
       wait_seconds: waitArg,
     },
     required: ['target', 'reel'],
-    run: async ({ target, reel, max = 12, images = true, wait_seconds }) => {
+    run: async ({ target, reel, max = 12, device, images = true, wait_seconds }) => {
       const dir = resolveIn(ROOT, reel, 'reel');
       const out = path.join(dir, 'study');
       const tgt = /^https?:\/\//.test(target) ? target : resolveIn(ROOT, target, 'target');
-      const job = startJob('study', dir, process.execPath, [path.join(S, 'capture.mjs'), 'study', tgt, out, '--max', String(Math.min(40, Number(max) || 12))], async () => {
+      const job = startJob('study', dir, process.execPath, [path.join(S, 'capture.mjs'), 'study', tgt, out, '--max', String(Math.min(40, Number(max) || 12)), ...(device ? ['--device', device] : [])], async () => {
         const study = JSON.parse(fs.readFileSync(path.join(out, 'study.json'), 'utf8'));
         const res = [text(`study.json (${shown(path.join(out, 'study.json'))}):\n${JSON.stringify(study, null, 1).slice(0, 60000)}`)];
         if (images) for (const p of study.pages.slice(0, 12)) res.push(text(`${p.screenshot}: ${p.url}`), await image(path.join(out, p.screenshot), 960));
@@ -293,7 +294,7 @@ const TOOLS = [
   },
   {
     name: 'reelly_capture',
-    description: 'Film every shot and montage in the storyboard frame by frame at 1920x1080 (deterministic clock, drawn cursor). About 3 minutes for a 60 s reel; pass only to re-capture just the shots you changed.',
+    description: 'Film every shot and montage in the storyboard frame by frame at its viewport, 1920x1080 or a phone or tablet (deterministic clock, drawn cursor or touch). About 3 minutes for a 60 s reel; pass only to re-capture just the shots you changed.',
     schema: { reel: reelArg, only: { type: 'array', items: { type: 'string' }, description: 'Item ids to re-capture' }, wait_seconds: waitArg },
     required: ['reel'],
     run: async ({ reel, only, wait_seconds }) => {
