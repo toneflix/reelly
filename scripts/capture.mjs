@@ -335,7 +335,7 @@ async function captureShot(browser, sb, base, item, entry, outDir, setupMod, qua
           const n = [...a.text].length;
           // Spread keys over the span with a little human jitter, never two on one frame.
           st.keys = [...a.text].map((ch, k) => ({ ch, frame: a.s + Math.round(((k + 0.15 + (rnd() - 0.5) * 0.5) / n) * a.span) }));
-          for (let k = 1; k < st.keys.length; k++) st.keys[k].frame = Math.max(st.keys[k].frame, st.keys[k - 1].frame + 1);
+          st.keys.forEach((key, k) => { key.frame = Math.max(key.frame, k ? st.keys[k - 1].frame + 1 : a.s); });
           events.push({ frame: f, kind: 'type-start', chars: n, frames: a.span });
         }
         for (const k of st.keys) if (k.frame === f) { await page.keyboard.type(k.ch); events.push({ frame: f, kind: 'key' }); }
