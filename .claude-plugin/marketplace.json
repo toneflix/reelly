@@ -1,0 +1,7 @@
+{
+  "name": "reelly",
+  "owner": { "name": "toneflix" },
+  "plugins": [
+    { "name": "reelly", "source": "./", "description": "Turn any product that runs in a browser into a cinematic product reel (MP4 with an original score)." }
+  ]
+}
